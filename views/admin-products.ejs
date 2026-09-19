@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DVaryHub — Admin Bidhaa</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, sans-serif; }
+  body { background: #0f172a; color: #e2e8f0; padding: 20px; min-height: 100vh; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  h1 { color: #38bdf8; font-size: 22px; }
+
+  .btn {
+    background: #38bdf8;
+    color: #0f172a;
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    transition: 0.2s;
+    display: inline-block;
+    margin-left: 6px;
+  }
+  .btn:hover { background: #0ea5e9; }
+
+  .btn-danger {
+    background: #ef4444;
+    color: #fff;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: 0.2s;
+  }
+  .btn-danger:hover { background: #dc2626; }
+
+  .form-card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+  }
+  .form-card h2 {
+    color: #38bdf8;
+    margin-bottom: 14px;
+    font-size: 18px;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 10px;
+  }
+  @media (max-width: 800px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  input {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    outline: none;
+    font-size: 14px;
+  }
+  input:focus { border-color: #38bdf8; }
+
+  h2.section-title {
+    color: #38bdf8;
+    margin-bottom: 12px;
+    font-size: 18px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px;
+  }
+
+  .product {
+    background: #1e293b;
+    border-radius: 10px;
+    padding: 10px;
+    transition: 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .product:hover { transform: translateY(-3px); }
+  .product img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #0f172a;
+  }
+  .product h3 {
+    margin: 8px 0 4px;
+    font-size: 15px;
+    word-wrap: break-word;
+  }
+  .product p {
+    color: #38bdf8;
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 15px;
+  }
+  .product .btn-danger { margin-top: auto; align-self: flex-start; }
+
+  .empty {
+    color: #94a3b8;
+    font-size: 14px;
+    padding: 20px;
+    text-align: center;
+    grid-column: 1 / -1;
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <h1>📦 Admin — Bidhaa</h1>
+    <div>
+      <a href="/admin/chat" class="btn">💬 Chat</a>
+      <a href="/" class="btn">👤 Mteja</a>
+    </div>
+  </header>
+
+  <!-- Form ya kuongeza bidhaa -->
+  <div class="form-card">
+    <h2>➕ Ongeza Bidhaa Mpya</h2>
+    <div class="form-row">
+      <input id="pName" placeholder="Jina la bidhaa" />
+      <input id="pPrice" type="number" placeholder="Bei (TSh)" />
+      <input id="pImg" placeholder="Image URL (https://...)" />
+      <button class="btn" onclick="addProduct()">Ongeza</button>
+    </div>
+  </div>
+
+  <!-- Bidhaa zote -->
+  <h2 class="section-title">Bidhaa Zote</h2>
+  <div id="grid" class="grid">
+    <p class="empty">Inapakia...</p>
+  </div>
+
+<script>
+  const grid = document.getElementById('grid');
+
+  // ===== Pakia bidhaa zote =====
+  async function load() {
+    try {
+      const items = await fetch('/api/products').then(r => r.json());
+
+      if (!items.length) {
+        grid.innerHTML = '<p class="empty">Hakuna bidhaa bado. Ongeza ya kwanza hapo juu.</p>';
+        return;
+      }
+
+      grid.innerHTML = items.map(p => `
+        <div class="product">
+          <img src="${p.imageUrl}" alt="${p.name}" onerror="this.src='https://via.placeholder.com/200?text=No+Image'" />
+          <h3>${escapeHtml(p.name)}</h3>
+          <p>TSh ${Number(p.price).toLocaleString()}</p>
+          <button class="btn-danger" onclick="del('${p._id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}')">🗑️ Futa</button>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.error('Load error:', err);
+      grid.innerHTML = '<p class="empty">Imeshindwa kupakia bidhaa.</p>';
+    }
+  }
+
+  // ===== Ongeza bidhaa =====
+  async function addProduct() {
+    const nameEl = document.getElementById('pName');
+    const priceEl = document.getElementById('pPrice');
+    const imgEl = document.getElementById('pImg');
+
+    const name = nameEl.value.trim();
+    const price = priceEl.value.trim();
+    const imageUrl = imgEl.value.trim();
+
+    if (!name || !price || !imageUrl) {
+      alert('Tafadhali jaza sehemu zote tatu');
+      return;
+    }
+    if (Number(price) <= 0) {
+      alert('Bei lazima iwe zaidi ya 0');
+      return;
+    }
+
+    try {
+      const res = await fetch('/admin/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price: Number(price), imageUrl })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert('Hitilafu: ' + (err.error || 'Imeshindwa kuongeza'));
+        return;
+      }
+
+      nameEl.value = '';
+      priceEl.value = '';
+      imgEl.value = '';
+      load();
+    } catch (err) {
+      console.error('Add error:', err);
+      alert('Mtandao umeshindwa. Jaribu tena.');
+    }
+  }
+
+  // ===== Futa bidhaa =====
+  async function del(id, name) {
+    if (!confirm(`Una uhakika unataka kufuta "${name}"?`)) return;
+
+    try {
+      const res = await fetch('/admin/api/products/' + id, { method: 'DELETE' });
+
+      if (!res.ok) {
+        alert('Imeshindwa kufuta');
+        return;
+      }
+      load();
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Mtandao umeshindwa.');
+    }
+  }
+
+  // ===== Escape HTML (usalama) =====
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ===== Anza =====
+  load();
+
+  // Enter kutuma kwenye form
+  ['pName', 'pPrice', 'pImg'].forEach(id => {
+    document.getElementById(id).addEventListener('keypress', e => {
+      if (e.key === 'Enter') addProduct();
+    });
+  });
+</script>
+</body>
+</html>
